@@ -2,7 +2,7 @@
 """
 Created on Sat Sep 24 14:37:14 2016
 
-@author: msachs2
+@author: Matthias Sachs & Anton Martinsson
 """
 
 import numpy as np
@@ -91,7 +91,9 @@ class BufferedOutputshedulerU(BufferedOutputsheduler):
         
     def __init__(self, integrator, Nsteps, varname_list=None, modprnt=None):
         super(BufferedOutputshedulerU,self).__init__(integrator, Nsteps, varname_list, modprnt)
-        self.traj_U = np.zeros(self.Nsamples)
+        self.traj_potE = np.zeros(self.Nsamples)
+        self.traj_kinE = np.zeros(self.Nsamples)
+        self.traj_totalE = np.zeros(self.Nsamples)
         
     def feed(self, t):
         if(self.tprnt >= self.Nsamples):
@@ -101,6 +103,8 @@ class BufferedOutputshedulerU(BufferedOutputsheduler):
             for varname in self.varname_list:
                 traj_var = getattr(self,'traj_' + varname)
                 traj_var[self.tprnt,:]=getattr(self.integrator,varname)
-            self.traj_U[self.tprnt] = self.integrator.model.comp_potential(self.integrator.position)
+            self.traj_potE[self.tprnt] = self.integrator.model.comp_potential(self.integrator.q)
+            self.traj_kinE[self.tprnt] = np.sum(self.integrator.p**2)
+            self.traj_totalE[self.tprnt] = self.traj_potE[self.tprnt] + self.traj_kinE[self.tprnt]
             self.tprnt += 1
             

@@ -2,7 +2,7 @@
 """
 Created on Mon Sep  5 07:43:03 2016
 
-@author: Mark
+@author: Matthias Sachs & Anton Martinsson
 """
 
 import numpy as np
@@ -24,21 +24,21 @@ class Model(object):
         self.dim = dim
         
     @abc.abstractmethod
-    def comp_force(self, position):
+    def comp_force(self, q):
         '''
         returns the force for the provided position vector  
         
-        param: position: numpy array of length self.dim 
+        param: q: position vector, numpy array of length self.dim
             
         '''
         raise NotImplementedError()
         
     @abc.abstractmethod
-    def comp_potential(self, params):
+    def comp_potential(self, q):
         '''
         returns the potential energy for the provided position vector  
         
-        param: position: numpy array of length self.dim 
+        param: q: position vector, numpy array of length self.dim
             
         '''
         raise NotImplementedError()
