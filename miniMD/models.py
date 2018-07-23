@@ -2,7 +2,15 @@
 """
 Created on Mon Sep  5 07:43:03 2016
 
-@author: Matthias Sachs & Anton Martinsson
+@author:    Matthias Sachs (email: msachs@math.duke.edu) 
+            Anton Martinsson (email: Anton.Martinsson@ed.ac.uk)
+
+Copyright: Duke University & Univeristy of Edinburgh
+
+Please contact the authors if you would like to reuse the code outside 
+of the tutorial session
+
+
 """
 
 import numpy as np
@@ -61,7 +69,4 @@ class HarmonicOscillator(Model):
         
     def comp_potential(self, x):
         return .5 * np.sum( self.k_vec * (x - self.rp_vec)**2)
-        
-        
-
         
