@@ -1,8 +1,15 @@
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 Created on Fri Sep 23 11:23:39 2016
 
-@author: Matthias Sachs & Anton Martinsson
+@author:    Matthias Sachs (email: msachs@math.duke.edu) 
+            Anton Martinsson (email: Anton.Martinsson@ed.ac.uk)
+
+Copyright: Duke University & Univeristy of Edinburgh
+
+Please contact the authors if you would like to reuse the code outside 
+of the tutorial session
 """
 import numpy as np
 import abc
@@ -12,7 +19,7 @@ import abc
 class Integrator(object):
     __metaclass__ = abc.ABCMeta
     
-    def __init__(self,model, h):
+    def __init__(self, model, h):
         
         self.model = model
         self.h = h
@@ -55,13 +62,28 @@ class EulerHamDyn(HamDynIntegrator):
         
     def traverse(self):
         
-        # Update gradient        
+        # Update gradient force      
         self.force = self.model.comp_force(self.q)
         # Update q
         self.q += self.h * self.p
         # Update p
         self.p += self.h * self.force
-        
+
+class VelocityVerlet(HamDynIntegrator):
+
+    def traverse(self):
+        # B-steps
+        self.p+=.5 * self.h * self.force
+        # A-steps
+        self.q += self.h * self.p
+        # Update gradient force
+        self.force = self.model.comp_force(self.q)
+        # B-steps
+        self.p += .5 * self.h * self.force
+'''
+Place implementations for SymplecticEuler and VelocityVerlet here
+
+'''        
 class Thermostat(Integrator):
     __metaclass__ = abc.ABCMeta
     
@@ -72,14 +94,6 @@ class Thermostat(Integrator):
         
     def set_Tk_B(self, Tk_B):
         self.Tk_B = Tk_B
-            
-    def anneal(self, tempering_scheme, initial_values=None):
-        self.initialise(initial_values)
-        for t in range(self.outputsheduler.Nsteps):
-            Tk_B = tempering_scheme(t, self.p_h)
-            self.set_Tk_B(Tk_B)
-            self.traverse()
-            self.outputsheduler.feed(t)
         
     def traverse(self):
         raise NotImplementedError()

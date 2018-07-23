@@ -2,7 +2,13 @@
 """
 Created on Sat Sep 24 14:37:14 2016
 
-@author: Matthias Sachs & Anton Martinsson
+@author:    Matthias Sachs (email: msachs@math.duke.edu) 
+            Anton Martinsson (email: Anton.Martinsson@ed.ac.uk)
+
+Copyright: Duke University & Univeristy of Edinburgh
+
+Please contact the authors if you would like to reuse the code outside 
+of the tutorial session
 """
 
 import numpy as np
@@ -104,7 +110,7 @@ class BufferedOutputshedulerU(BufferedOutputsheduler):
                 traj_var = getattr(self,'traj_' + varname)
                 traj_var[self.tprnt,:]=getattr(self.integrator,varname)
             self.traj_potE[self.tprnt] = self.integrator.model.comp_potential(self.integrator.q)
-            self.traj_kinE[self.tprnt] = np.sum(self.integrator.p**2)
+            self.traj_kinE[self.tprnt] = .5*np.sum(self.integrator.p**2)
             self.traj_totalE[self.tprnt] = self.traj_potE[self.tprnt] + self.traj_kinE[self.tprnt]
             self.tprnt += 1
             
