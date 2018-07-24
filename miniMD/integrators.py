@@ -120,6 +120,27 @@ class RESPA(HamDynIntegrator):
         self.force = self.model.comp_force(self.q)
         self.fast_force = self.model.comp_fastForce(self.q)
         self.slow_force = self.model.comp_slowForce(self.q)
+        
+    def traverse(self):
+        
+        # Update slow component of p
+        self.p += .5 * self.h * self.slow_force
+        # RESPA loop
+        for i in range(self.r):
+            # Update fast component of p
+            self.p += .5 * self.h * self.fast_force
+            # Update q
+            self.q += self.h_substep * self.p
+            # Update fast force
+            self.fast_force = self.model.comp_fastForce(self.q)
+            # Update fast component of p
+            self.p += .5 * self.h * self.fast_force
+        # Update slow force      
+        self.slow_force = self.model.comp_slowForce(self.q)
+        # Update slow component of p
+        self.p += .5 * self.h * self.slow_force
+
+
 
 class Thermostat(Integrator):
     __metaclass__ = abc.ABCMeta
