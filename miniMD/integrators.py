@@ -82,10 +82,45 @@ class EulerHamDyn(HamDynIntegrator):
         # Update p
         self.p += self.h * self.force
 
+
+class VelocityVerlet(HamDynIntegrator):
+    '''
+    Velocity Verlet integration scheme for Hamiltonian system
+    ''' 
+    def traverse(self):
+    
+        # Update p
+        self.p += .5 * self.h * self.force
+        # Update q
+        self.q += self.h * self.p
+        # Update gradient force      
+        self.force = self.model.comp_force(self.q)
+        # Update p
+        self.p += .5 * self.h * self.force
+        
 '''
 Place implementations for SymplecticEuler and VelocityVerlet here
 
 '''        
+
+class RESPA(HamDynIntegrator):
+    
+    def __init__(self, model, h, r=1):
+        '''
+        :params model: object of class MultiScaleModel
+        :params h: stepsize used for integration
+        '''
+        super(RESPA,self).__init__(model, h)
+        self.r = r
+        self.h_substep = float(self.h) /self.r
+        self.fast_force = np.zeros(self.force.shape)
+        self.slow_force = np.zeros(self.force.shape)
+        
+    def update_dyn_values(self):          
+        self.force = self.model.comp_force(self.q)
+        self.fast_force = self.model.comp_fastForce(self.q)
+        self.slow_force = self.model.comp_slowForce(self.q)
+
 class Thermostat(Integrator):
     __metaclass__ = abc.ABCMeta
     
