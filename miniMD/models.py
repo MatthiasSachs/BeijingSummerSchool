@@ -51,7 +51,12 @@ class Model(object):
         '''
         raise NotImplementedError()
 
-
+    def apply_boundary_conditions(self, q):
+        '''
+        Function which updates the position variable q according to the 
+        boundary condition of the positional domain 
+        '''
+        pass
 
 class HarmonicOscillator(Model):       
         
@@ -137,3 +142,47 @@ class DoublePendulum(MultiScaleModel):
         a = .5 * self.k1* (np.linalg.norm(q[:2]) - self.r1)**2 
         b = .5 * self.k12*(np.linalg.norm(q[:2] - q[2:])- self.r12)**2
         return  a+b
+    
+    
+class CosineModel(Model):
+    """ 
+    Class which implements the force and potential for the cosine model
+    """
+    def __init__(self, dim=1, L=2.*np.pi):
+        """ 
+        Init function for the class
+        :param L: length of periodic box
+        """
+        super(CosineModel, self).__init__(dim)
+        # Length of the periodic box
+        self.L = L
+    
+    def comp_force(self,q):
+        """ updates the force internally from the current position
+        """
+        return np.sin(q)
+        
+    def comp_potential(self, q):
+        """ returns the potential at the current position
+        """
+        return np.cos(q)
+
+    def apply_boundary_conditions(self, q):
+        q = np.mod(q, self.L)
+
+class CubicDoubleWell(Model):
+    """ 
+    Class implementing the force and potential for a double well potential of
+    the form U(q) = (b - a/2) * (q^2-1)^2 + a/2 * (q+1)
+    """
+    def __init__(self, dim=1, a=1.0,b=1.0):
+    
+        super(CubicDoubleWell, self).__init__(dim)
+        self.a = a
+        self.b = b
+        
+    def comp_force(self, q):
+        return - 4.0*(self.b-.5 * self.a)*q*(q**2-1.0) - .5 * self.a
+        
+    def comp_potential(self, q):
+        return (self.b -.5 * self.a)*(q**2-1.0)**2+.5 * self.a*(q+1)

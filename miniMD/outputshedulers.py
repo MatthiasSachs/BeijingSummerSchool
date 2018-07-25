@@ -114,3 +114,38 @@ class BufferedOutputshedulerU(BufferedOutputsheduler):
             self.traj_totalE[self.tprnt] = self.traj_potE[self.tprnt] + self.traj_kinE[self.tprnt]
             self.tprnt += 1
             
+class HistogramOutputsheduler(BufferedOutputsheduler):
+    
+    def __init__(self, integrator, Nsteps, varname_list=None, bins_list=None, modprnt=None):
+        
+        self.integrator = integrator
+        self.Nsteps = Nsteps
+        
+        
+        self.modprnt = modprnt
+            
+        self.Nsamples = Nsteps // self.modprnt + 1
+            
+        self.varname_list = varname_list
+        self.bins_list = bins_list
+    
+        for i in range(len(self.varname_list)):
+            varname = self.varname_list[i]
+            setattr(self,'traj_bins_' + varname, np.zeros([self.Nsamples, bins_list[i].shape[0]-1]) )
+        self.tprnt = 0
+        
+        self.integrator.outputsheduler = self
+        
+    def feed(self, t):
+        if(self.tprnt >= self.Nsamples):
+                raise Exception('Warning: outputsheduler must be reinitialized after being used for one integration run')
+
+        if t % self.modprnt == 0:
+            for i in range(len(self.varname_list)):
+                varname = self.varname_list[i]
+                bins = self.bins_list[i]
+                traj_var = getattr(self,'traj_bins_' + varname)
+                bincounts, bins = np.histogram(getattr(self.integrator, varname), bins=bins)
+                traj_var[self.tprnt,:]= bincounts
+            
+            self.tprnt += 1

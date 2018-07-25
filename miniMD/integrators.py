@@ -144,29 +144,130 @@ class RESPA(HamDynIntegrator):
 
 class Thermostat(Integrator):
     __metaclass__ = abc.ABCMeta
-    
+    '''
+    Base class for first order (position only) stochastic dynamics
+    '''
     def __init__(self, model, h, Tk_B=1.0):
+        '''
+        :param h: discrete stepsize for time
+        :param model: class which is used to update the force
+        :param Tk_B: temperature paramameter
+        '''
         super(Thermostat,self).__init__(model, h)
         self.Tk_B = None
         self.set_Tk_B(Tk_B)
         
     def set_Tk_B(self, Tk_B):
         self.Tk_B = Tk_B
-            
+
+class BrownianDynamics(Thermostat):
+    __metaclass__ = abc.ABCMeta
+    '''
+    Base class for numerical integrators for Brownian dynamics 
+    '''
+    def __init__(self, model, h, Tk_B=1.0):
+        super(BrownianDynamics,self).__init__(model, h, Tk_B)
+    
+
+
+class EulerMaruyamaBD(BrownianDynamics):
+    """ 
+        Class which implements the Euler-Maruyama method
+        for Brownian Dynamics / Overdamped Langevin dynamics
+    """
+    
+    def __init__(self,model, h, Tk_B):
+        """ Init function for the class
         
+        :param h: discrete stepsize for the time discretization
+        :param model: class which is used to update the force
+        :param Tk_B: temperature paramameter
+        """
+        
+        super(EulerMaruyamaBD, self).__init__(model, h, Tk_B)
+
+        self.zeta = np.sqrt(2. * self.h * self.Tk_B)
+     
     def traverse(self):
-        raise NotImplementedError()
-         
-    def print_summary(self):
-        pass
+        # step method forward in time
+        self.q += self.h * self.force + self.zeta * np.random.normal(0., 1., self.model.dim)
+        # force update
+        self.model.apply_boundary_conditions(self.q)
+        self.force = self.model.comp_force(self.q)
 
+class HeunsMethodBD(BrownianDynamics):
+    """ 
+    Class which implements Heun's method
+    for Brownian Dynamics / Overdamped Langevin dynamics
+    """
+    def __init__(self, model, h, Tk_B):
+        """ Init function for the class
+        
+        :param h: discrete stepsize for the time discretization
+        :param model: class which is used to update the force
+        :param Tk_B: temperature paramameter
+        """        
+        super(HeunsMethodBD, self).__init__(model, h, Tk_B)
 
+        self.zeta = np.sqrt(2. * self.h * self.Tk_B)
+    
+    def traverse(self):
+        """ Integration function which evolves the model
+        given in self._model
+        """
+        # cache some data 
+        noise_cache = np.random.normal(0., 1., self.model.dim)
+
+        # preforce update
+        q_cache = self.q + self.h * self.force + self.zeta * noise_cache
+
+        # force update #1
+        force_cache = self.model.comp_force(q_cache)
+        
+        # post intermediate force update
+        self.q += .5 * self.h * (force_cache + self.force) + self.zeta * noise_cache
+        
+        # force update #2
+        self.model.apply_boundary_conditions(self.q)
+        self.force = self.model.comp_force(self.q)
+
+class LeimkuhlerMatthews(BrownianDynamics):
+    """ 
+    Class which the Leimkuhler-Matthews method
+    for Brownian Dynamics / Overdamped Langevin dynamics
+    """
+        
+        
 class KineticThermostat(Thermostat):
     __metaclass__ = abc.ABCMeta
-    
+    """
+    Base class for kinetic thermostats (thermostat methods possesing a momentum
+    variable)
+    """
     def __init__(self, model, h, Tk_B=1.0):
+        '''
+        :param Tk_B: temperature paramameter
+        
+        for other parameters see parent class
+        '''
         super(KineticThermostat,self).__init__(model, h)
         self.p = np.zeros(self.model.dim)
         
+class LangevinThermostat(KineticThermostat):
+    __metaclass__ = abc.ABCMeta
+    """
+    Base class for thermostats implementing the underdamped Langevin equation 
+    """
+    
+    def __init__(self, model, h, Tk_B=1.0, gamma=1.0):
+        """ Init function for the class
+        '''
+        :param gamma:   friction coefficient
+                        
+        for other parameters see parent class
+        '''
+        """
+        super(KineticThermostat,self).__init__(model, h, Tk_B)
+        self.gamma = gamma
         
         
