@@ -73,7 +73,7 @@ class HarmonicOscillator(Model):
         return - self.k_vec * (x - self.rp_vec)
         
     def comp_potential(self, x):
-        return .5 * np.sum( self.k_vec * (x - self.rp_vec)**2)
+        return .5 * np.sum( self.k_vec * (x - self.rp_vec)**2,axis=0)
 
 class MultiScaleModel(Model):
     __metaclass__ = abc.ABCMeta

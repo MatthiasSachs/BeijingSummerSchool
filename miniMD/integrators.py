@@ -36,7 +36,7 @@ class Integrator(object):
     def initialise(self, initial_values=None):
         if initial_values is not None:
             for key in initial_values.keys():
-                setattr(self, key, initial_values[key])
+                setattr(self, key, np.copy(initial_values[key]))
         self.update_dyn_values();     
         
     def update_dyn_values(self):          
@@ -232,11 +232,30 @@ class HeunsMethodBD(BrownianDynamics):
         self.force = self.model.comp_force(self.q)
 
 class LeimkuhlerMatthews(BrownianDynamics):
-    """ 
-    Class which the Leimkuhler-Matthews method
-    for Brownian Dynamics / Overdamped Langevin dynamics
     """
+        Class which the Leimkuhler-Matthews method
+        for Brownian Dynamics / Overdamped Langevin dynamics
+        """
+    def __init__(self, model, h, Tk_B):
+        super(LeimkuhlerMatthews, self).__init__(model, h, Tk_B)
+        self.noise_k1 = np.random.normal(0., 1., self.model.dim)
+        self.zeta = np.sqrt(.5 * self.h * self.Tk_B )
+    
+    def traverse(self):
+        """ Integration function which evolves the model
+            given in self._model
+            """
+        noise_kp1 = np.random.normal(0., 1., self.model.dim)
         
+        # pre force update
+        self.q += self.h * self.force + self.zeta * (self.noise_k1 + noise_kp1)
+        
+        # force update
+        self.model.apply_boundary_conditions(self.q)
+        self.force = self.model.comp_force(self.q)
+        
+        # update the chached noise
+        self.noise_k1 = noise_kp1
         
 class KineticThermostat(Thermostat):
     __metaclass__ = abc.ABCMeta
@@ -267,7 +286,27 @@ class LangevinThermostat(KineticThermostat):
         for other parameters see parent class
         '''
         """
-        super(KineticThermostat,self).__init__(model, h, Tk_B)
+        super(LangevinThermostat,self).__init__(model, h, Tk_B)
         self.gamma = gamma
         
+class LangevinBAOSplitting(LangevinThermostat):
+    __metaclass__ = abc.ABCMeta
+    
+    def __init__(self, model, h, Tk_B=1.0, gamma=1.0):
+        super(LangevinBAOSplitting,self).__init__(model, h, Tk_B, gamma)
+        
+        self.alpha = np.exp(-self.h * self.gamma)
+        self.zeta = np.sqrt((1.0-self.alpha**2)*self.Tk_B)
+        self.alpha2 = np.exp(-.5 * self.h * self.gamma)
+        self.zeta2 = np.sqrt((1.0-self.alpha2**2)*self.Tk_B)
+        
+class LangevinBAOAB(LangevinBAOSplitting):
+    
+    def traverse(self):
+        self.p += .5 * self.h * self.force
+        self.q += .5 * self.h * self.p
+        self.p = self.alpha * self.p + self.zeta * np.random.normal(0,1.0, self.model.dim)
+        self.q += .5 * self.h * self.p
+        self.force = self.model.comp_force(self.q)
+        self.p += .5 * self.h * self.force
         
