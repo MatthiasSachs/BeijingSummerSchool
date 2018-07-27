@@ -13,7 +13,6 @@ of the tutorial session
 import numpy as np
 import abc
 
-
        
 class Integrator(object):
     __metaclass__ = abc.ABCMeta
@@ -310,3 +309,89 @@ class LangevinBAOAB(LangevinBAOSplitting):
         self.force = self.model.comp_force(self.q)
         self.p += .5 * self.h * self.force
         
+        
+class LangevinOBABO(LangevinBAOSplitting):
+    
+    def traverse(self):
+        self.p = self.alpha2 * self.p + self.zeta2 * np.random.normal(0,1.0, self.model.dim)
+        self.p += .5 * self.h * self.force
+        self.q += self.h * self.p
+        self.force = self.model.comp_force(self.q)
+        self.p += .5 * self.h * self.force
+        self.p = self.alpha2 * self.p + self.zeta2 * np.random.normal(0,1.0, self.model.dim)
+
+        
+class EnsembleQuasiNewton(LangevinBAOSplitting):
+    """ Sampler implementing ensemble Quasi Newton method 
+    implementation is witout local weighting of estimates of the walker covariance
+    """
+    
+    def __init__(self, repmodel, h, Tk_B=1.0, gamma=1.0, regparams=1.0, B_update_mod=1):
+
+        
+        super(EnsembleQuasiNewton, self).__init__(repmodel, h, Tk_B=1.0, gamma=1.0)
+        self.pmdim = self.model.protmodel.dim
+        self.Bmatrix = np.zeros([self.model.nreplicas, self.pmdim, self.pmdim ])
+        for i in range(self.model.nreplicas):
+            self.Bmatrix[i,:,:] = np.eye( self.pmdim)
+        self.regparams = regparams
+        self.B_update_mod = B_update_mod
+        self.substep_counter = 0
+        
+    
+
+    def traverse(self):
+        
+        nreplicas = self.model.nreplicas
+           
+         # update preconditioner
+        if self.substep_counter % self.B_update_mod == 0:
+            self.update_Bmatrix()
+            
+        # B-step
+        for i in range(nreplicas):
+            self.q[i*self.pmdim:(i+1)*self.pmdim] += .5 * self.h  * np.matmul(self.Bmatrix[i,:,:], self.p[i*self.pmdim:(i+1)*self.pmdim])
+            
+        # A-step
+        for i in range(nreplicas):
+            self.p[i*self.pmdim:(i+1)*self.pmdim] += .5 * self.h * np.matmul(np.transpose(self.Bmatrix[i,:,:]), self.force[i*self.pmdim:(i+1)*self.pmdim])
+        
+        # O-step
+        self.p = self.alpha * self.p + self.zeta * np.random.normal(0., 1., self.model.dim)
+         
+        # A-step   
+        for i in range(nreplicas):
+            self.p[i*self.pmdim:(i+1)*self.pmdim] += .5 * self.h * np.matmul(np.transpose(self.Bmatrix[i,:,:]), self.force[i*self.pmdim:(i+1)*self.pmdim])
+        
+        # update force
+        self.model.apply_boundary_conditions()
+        self.force = self.model.comp_force(self.q)
+        
+        # B-step
+        for i in range(nreplicas):
+            self.q[i*self.pmdim:(i+1)*self.pmdim] += .5 * self.h * np.matmul(self.Bmatrix[i,:,:], self.p[i*self.pmdim:(i+1)*self.pmdim]) 
+         
+       
+            
+        self.substep_counter+=1
+        
+    def update_Bmatrix(self):
+        if self.model.nreplicas > 1:
+            indices = [i for i in range(self.model.nreplicas)]
+            for r in range(self.model.nreplicas):
+                mask =  np.array(indices[:r] + indices[(r + 1):])
+                #print(np.cov(self.q.reshape([self.model.nreplicas,self.pmdim])[mask,:],rowvar=False) + self.regparams * np.eye(self.pmdim))
+                self.Bmatrix[r,:,:] = np.linalg.cholesky(
+                        np.cov(self.q.reshape([self.model.nreplicas,self.pmdim])[mask,:],rowvar=False) + self.regparams * np.eye(self.pmdim)
+                                                        )
+
+def autocorr(x, maxlag=100):
+    acf_vec = np.zeros(maxlag)
+    xmean = np.mean(x)
+    n = x.shape[0]
+    for lag in range(maxlag):
+        index = np.arange(0,n-lag,1)
+        index_shifted = np.arange(lag,n,1)
+        acf_vec[lag] = np.mean((x[index ]-xmean)*(x[index_shifted]-xmean))
+    
+    return acf_vec   
